@@ -1,11 +1,11 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Param } from '@nestjs/common';
 import * as lighthouse from 'lighthouse';
 import * as chromeLauncher from 'chrome-launcher';
 
 @Controller('lighthouse')
 export class LighthouseController {
-  @Get()
-  lighthouse(): Promise<string> {
+  @Get(':url')
+  lighthouse(@Param('url') url: string): Promise<string | void> {
     /* chromeLauncher
       .launch()
       .then(async (value: chromeLauncher.LaunchedChrome) => {
@@ -22,13 +22,13 @@ export class LighthouseController {
         value.kill();
       })
       .catch((err: any) => console.log(err)); */
-    const report = this.getReport();
-    console.log(report);
+    const report = this.getReport(`https://${url}`);
+    // console.log(report);
 
     return report;
   }
 
-  private async getReport(): Promise<string> {
+  private async getReport(url: string): Promise<string | void> {
     const report = await chromeLauncher
       .launch()
       .then(async (value: chromeLauncher.LaunchedChrome) => {
@@ -38,12 +38,19 @@ export class LighthouseController {
           onlyCategories: ['performance'],
           port: value.port,
         };
-        const runnerResult = await lighthouse('https://reactjs.org/', options);
+        const runnerResult = await lighthouse(url, options);
+        // console.log(runnerResult);
 
-        const reportJson = runnerResult.report;
-        console.log(reportJson);
+        const reportJson = JSON.parse(runnerResult.report);
         value.kill();
-        return reportJson;
+        const audits = reportJson['audits'];
+        const result = {};
+        Object.keys(audits).map(
+          (auditKey) => (result[auditKey] = audits[auditKey].score),
+        );
+        console.log(result);
+        // return JSON.stringify(result);
+        return JSON.stringify(result);
       })
       .catch((err: any) => console.log(err));
     return report;
